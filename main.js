@@ -48,47 +48,48 @@ Vue.component('product', {
                         >add to cart</button>
                 <button @click="decCart">delete</button>
             </div>
+
+            <div>
+                <h2>Review</h2>
+                <p v-if="!reviews.length">There are no reviews yet.</p>
+                <ul>
+                    <li v-for="review in reviews">
+                        <p>{{ review.name }} / {{ review.review }} / rating: {{ review.rating }} / recom: {{ review.recom }}</p>
+                    </li>
+                </ul>
+            </div>
+
+            <product-review @review-submitted="addReview"></product-review>
         </div>
     `,
-    data() {        
+    data() {
         return {
             brand: 'Vue Mastery',    
             product: 'Socks',
             selectedVariant: 0,         
-            details: ["80% cotton", "20% polyester", "Gender-natural"], 
+            details: ["80% cotton", "20% polyester", "Gender-natural"],     
             variants: [
                 {variantId: 2234, variantColor: "green", variantImage: './assets/g.jpg', variantQuantity: 10}, 
                 {variantId: 2235, variantColor: "blue",  variantImage: './assets/b.jpg',  variantQuantity: 5}
-            ]
+            ],
+            reviews: []
         }
     },
-    methods: {      // just like Vue/app         
+    methods: {             
         addToCart: function() {             
             this.$emit('add-to-cart', this.variants[this.selectedVariant].variantId)   
-                                        // ** the second param will be added (and explained) later in lesson
-                                        // at first we dont have it
-
-                                        // 1  -  emitting an event ('add-to-cart' is the name of the new event > using in html)
-                                        // we should let the parent [the app] know if the button is clicked (because the cart is no longer in compoenent but in 'app')
-                                        // by click on btn > do 'addToCart' [in component's template]
-                                        // the 'addToCart' is emitted to 'add-to-cart' event
-                                        // in [app] > when the 'add-to-cart'/event happens > do the 'updateCart' [a method from the app]
-                                        // so if we have more than one instance of our 'product' component all click changes our only CART
-
-                                        // 2  - by adding variantId 9as the 2nd param) we get the id of added product and send it to 'updateCart'/method  
-                                        // by now the id of added product will be added to 'cart'/array
-                                        // but this isn't good 
-                                        //  so we show the length of our array in HTML not the whole array >> {{ cart.length }}
-                                        // then we can see the added product's ids in chrome's Vue.devTool
         },
         updateProduct(index) {       
             this.selectedVariant = index
         },
         decCart() {
             this.$emit('del-from-cart', this.variants[this.selectedVariant].variantId)
+        },
+        addReview(productReview) {
+            this.reviews.push(productReview)
         }
     },
-    computed: {     // just like Vue/app
+    computed: {
         title() {   
             return this.brand + ' ' + this.product
         }, 
@@ -107,14 +108,85 @@ Vue.component('product', {
     }
 })
 
+Vue.component('product-review', {
+    template: /*html*/ `
+        <form class="review-form" @submit.prevent="onSubmit">
+
+            <p v-if="errors.length">
+                <b>errors:</b>
+                <ul><li v-for="error in errors">{{ error }}</li></ul>
+            </p>
+
+            <p>
+                <label for="name">name: </label>
+                <input id="name" v-model="name">
+            </p>
+            <p>
+                <label for="review">review: </label>
+                <textarea id="review" v-model="review"></textarea>
+            </p>
+            <p>
+                <label for="rating">rating: </label>
+                <select id="rating" v-model.number="rating">
+                    <option>1</option>
+                    <option>2</option>
+                    <option>3</option>
+                    <option>4</option>
+                    <option>5</option>
+                </select>
+            </p>
+            <p>
+                <label>
+                    YES
+                    <input type="radio" value="yes" v-model="recom">
+                </label>
+                <label for="no">NO</label>
+                <input id="no" type="radio" value="no" v-model="recom">
+            </p>
+            <p><input type="submit" value="submit"></p>
+        </form>
+    `,
+    data() {
+        return {
+            name: null,
+            review: null,
+            rating: null,
+            recom: null,
+            errors: []
+        }
+    },
+    methods: {
+        onSubmit() {
+            if(this.name && this.review && this.rating) { // required values
+                let productReview = {
+                    name: this.name,
+                    review: this.review,
+                    rating: this.rating,
+                    recom: this.recom
+                }
+                // sending tha submitted value to its parent (product component)
+                this.$emit('review-submitted', productReview)
+                // reset tha value after submit
+                this.name = null
+                this.review = null
+                this.rating = null
+                this.recom = null
+            }
+            else {
+                if(!this.name) this.errors.push("name required")
+                if(!this.review) this.errors.push("say somthing")
+                if(!this.rating) this.errors.push("you have to rate")
+            }
+        }
+    }
+})
+
 // define 'app' after 'component'
 var app = new Vue({         
     el: '#app',
     data: {
-        premium: true,          
-        //cart: 0       // this the old version (beginning of lesson)
-                        // for knowing wich item is added to cart we use an array instead of '0' (next line)
-        cart: []        // then in the methods (cont.: below)
+        premium: true,  
+        cart: []   
     }, 
     methods: {
         updateCart(id) {
