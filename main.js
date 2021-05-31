@@ -1,3 +1,5 @@
+var eventBus = new Vue()
+
 Vue.component('product-details', {
     props: {
         details: {
@@ -12,7 +14,7 @@ Vue.component('product-details', {
     `
 })
 
-Vue.component('product', {
+Vue.component('product', { 
     props: {
         premium: {
             type: Boolean,
@@ -31,9 +33,8 @@ Vue.component('product', {
                 <p v-if="inStock">In Stock</p>
                 <p v-else>Out of Stock</p>
                 <p>User is premium: {{ premium }}</p>
-                <p>shipping: {{ shipping }}</p>
-
-                <product-details :details="details"></product-details>
+                
+                <detail-tab :shipping="shipping" :details="details"></detail-tab>
 
                 <div v-for="(variant, index) in variants" 
                     :key="variant.variantId"
@@ -49,25 +50,16 @@ Vue.component('product', {
                 <button @click="decCart">delete</button>
             </div>
 
-            <div>
-                <h2>Review</h2>
-                <p v-if="!reviews.length">There are no reviews yet.</p>
-                <ul>
-                    <li v-for="review in reviews">
-                        <p>{{ review.name }} / {{ review.review }} / rating: {{ review.rating }} / recom: {{ review.recom }}</p>
-                    </li>
-                </ul>
-            </div>
+            <product-tabs :reviews="reviews"></product-tabs>
 
-            <product-review @review-submitted="addReview"></product-review>
         </div>
     `,
-    data() {
+    data() {       
         return {
             brand: 'Vue Mastery',    
             product: 'Socks',
             selectedVariant: 0,         
-            details: ["80% cotton", "20% polyester", "Gender-natural"],     
+            details: ["80% cotton", "20% polyester", "Gender-natural"],   
             variants: [
                 {variantId: 2234, variantColor: "green", variantImage: './assets/g.jpg', variantQuantity: 10}, 
                 {variantId: 2235, variantColor: "blue",  variantImage: './assets/b.jpg',  variantQuantity: 5}
@@ -75,7 +67,7 @@ Vue.component('product', {
             reviews: []
         }
     },
-    methods: {             
+    methods: {               
         addToCart: function() {             
             this.$emit('add-to-cart', this.variants[this.selectedVariant].variantId)   
         },
@@ -84,12 +76,9 @@ Vue.component('product', {
         },
         decCart() {
             this.$emit('del-from-cart', this.variants[this.selectedVariant].variantId)
-        },
-        addReview(productReview) {
-            this.reviews.push(productReview)
         }
     },
-    computed: {
+    computed: {     
         title() {   
             return this.brand + ' ' + this.product
         }, 
@@ -105,6 +94,12 @@ Vue.component('product', {
             }
             return 2.99
         }
+    },
+    mounted() { // a place to put code that you want to run as soon as the component is mounted to the DOM
+        eventBus.$on('review-submitted', productReview => { // eventBus is listening to the 'review-submitted' event 
+                                                            // then it will take 'productReview' and do the 'push'
+            this.reviews.push(productReview)
+        })
     }
 })
 
@@ -157,7 +152,7 @@ Vue.component('product-review', {
     },
     methods: {
         onSubmit() {
-            if(this.name && this.review && this.rating) { // required values
+            if(this.name && this.review && this.rating) { 
                 let productReview = {
                     name: this.name,
                     review: this.review,
@@ -165,7 +160,7 @@ Vue.component('product-review', {
                     recom: this.recom
                 }
                 // sending tha submitted value to its parent (product component)
-                this.$emit('review-submitted', productReview)
+                eventBus.$emit('review-submitted', productReview)
                 // reset tha value after submit
                 this.name = null
                 this.review = null
@@ -181,17 +176,89 @@ Vue.component('product-review', {
     }
 })
 
+Vue.component('product-tabs', {
+    props: {
+        reviews: {          // for accepting 'reviews' as a prop from '<product-tabs :reviews="reviews">'
+            type: Array,
+            required: true
+        }
+    },
+    template: `
+        <div>
+            <span   class="tab"
+                    :class="{activeTab: selectedTab === tab}" 
+                    v-for="(tab, index) in tabs" 
+                    :key="index"
+                    @click="selectedTab = tab">
+                    {{ tab }}</span>
+
+            <div v-show="selectedTab === 'reviews'">
+                <h2>Review</h2>
+                <p v-if="!reviews.length">There are no reviews yet.</p>
+                <ul>
+                    <li v-for="review in reviews">
+                        <p>{{ review.name }} / {{ review.review }} / rating: {{ review.rating }} / recom: {{ review.recom }}</p>
+                    </li>
+                </ul>
+            </div>
+
+            <product-review v-show="selectedTab === 'make a review'"></product-review>
+        </div>
+    `,
+    data() {
+        return {
+            tabs: ['reviews', 'make a review'],
+            selectedTab: "reviews"
+        }
+    }
+})
+
+// challenge
+Vue.component('detail-tab', {
+    props: {
+        shipping: {
+            required: true
+        },
+        details: {
+            type: Array,
+            required: true
+        }
+    },
+    template: /*html*/ `
+        <div>
+            <span   class="tab"
+                    :class="{activeTab: selectedTab === tab}" 
+                    v-for="(tab, index) in tabs" 
+                    :key="index"
+                    @click="selectedTab = tab">
+                    {{ tab }}</span>
+            <div v-show="selectedTab === 'shipping'">
+                <p>shipping: {{ shipping }}</p>
+            </div>
+            <div v-show="selectedTab === 'details'">
+                <product-details :details="details"></product-details>
+            </div>
+        </div>
+    `,
+    data() {
+        return {
+            tabs: ['shipping', 'details'],
+            selectedTab: 'shipping'
+        }
+    }
+
+})
+
 // define 'app' after 'component'
 var app = new Vue({         
     el: '#app',
     data: {
-        premium: true,  
-        cart: []   
+        premium: true,
+        cart: []
     }, 
     methods: {
         updateCart(id) {
-            this.cart.push(id)      // we push the id of added product 
-                                    // now we should send 'id' to this method from our component when emitting the 'add-to-cart' event
+            this.cart.push(id)
         }, 
         deleteFrom(id) {
             for(var i = this.cart.length - 1; i >= 0; i--) {
